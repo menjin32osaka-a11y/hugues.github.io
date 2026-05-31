@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诗歌集</title>
+<style>
+/* ============ RESET & BASE ============ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family: "PingFang SC","Microsoft YaHei","Noto Serif SC",serif;
+  background: #1a1a2e;
+  min-height: 100vh;
+  color: #e0e0e0;
+}
+/* ============ HEADER ============ */
+.header{
+  text-align: center;
+  padding: 48px 20px 32px;
+}
+.header h1{
+  font-size: 2.4em;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: #f0e6d3;
+  text-shadow: 0 0 30px rgba(200,160,100,0.3);
+}
+.header p{
+  margin-top: 8px;
+  font-size: 0.95em;
+  color: rgba(200,180,150,0.6);
+}
+/* ============ SEARCH BAR ============ */
+.search-bar{
+  display: flex;
+  justify-content: center;
+  margin-bottom: 36px;
+}
+.search-bar input{
+  width: 320px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: #e0e0e0;
+  font-size: 0.95em;
+  outline: none;
+  transition: border-color 0.3s, background 0.3s;
+}
+.search-bar input:focus{
+  border-color: rgba(200,160,100,0.5);
+  background: rgba(255,255,255,0.1);
+}
+/* ============ CARD GRID ============ */
+.gallery{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+  padding: 0 40px 60px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.card{
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94),
+              box-shadow 0.35s ease,
+              background 0.35s ease;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.card:hover{
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  background: rgba(255,255,255,0.08);
+}
+.card-thumb{
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.card-thumb .thumb-icon{
+  font-size: 3em;
+  opacity: 0.8;
+  transition: transform 0.3s ease;
+}
+.card:hover .thumb-icon{ transform: scale(1.1); }
+.card-info{
+  padding: 14px 16px 16px;
+}
+.card-info .poem-title{
+  font-size: 1.05em;
+  font-weight: 500;
+  color: #f0e6d3;
+  margin-bottom: 4px;
+}
+.card-info .poem-author{
+  font-size: 0.82em;
+  color: rgba(200,180,150,0.55);
+}
+/* ============ OVERLAY (FULLSCREEN DETAIL) ============ */
+.overlay{
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.overlay.active{
+  opacity: 1;
+  pointer-events: all;
+}
+.overlay-bg{
+  position: absolute;
+  inset: 0;
+}
+.overlay-bg canvas{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.overlay-mist{
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+}
+.overlay-content{
+  max-height: 85vh;
+  overflow-y: auto;
+  padding-right: 24px;
+
+  position: relative;
+  z-index: 2;
+  max-width: 720px;
+  width: 90%;
+  padding: 60px 48px;
+  text-align: center;
+  animation: fadeInUp 0.6s cubic-bezier(0.22,0.61,0.36,1);
+}
+@keyframes fadeInUp{
+  from{ opacity:0; transform: translateY(40px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+.overlay-close{
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  z-index: 3;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.25);
+  color: rgba(255,255,255,0.7);
+  font-size: 1.2em;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+}
+.overlay-close:hover{
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border-color: rgba(255,255,255,0.5);
+}
+.overlay-content .poem-title{
+  font-size: 2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+}
+.overlay-content .poem-author{
+  font-size: 1em;
+  opacity: 0.7;
+  margin-bottom: 36px;
+  letter-spacing: 0.05em;
+}
+.overlay-content .poem-body{
+  font-size: 1.15em;
+  line-height: 2.2;
+  white-space: pre-line;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.overlay-content::-webkit-scrollbar { width: 6px; }
+.overlay-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>诗歌集</h1>
+  <p>一诗一境，步步入画</p>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="搜索诗歌标题或作者...">
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<div class="overlay" id="overlay">
+  <button class="overlay-close" id="overlayClose">&times;</button>
+  <div class="overlay-bg" id="overlayBg"></div>
+  <div class="overlay-mist"></div>
+  <div class="overlay-content" id="overlayContent"></div>
+</div>
+
+<script>
+// ============ PARTICLE SYSTEM BASE ============
+class ParticleSystem {
+  constructor(containerEl, config) {
+    this.container = containerEl;
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    this.container.appendChild(this.canvas);
+    this.ctx = this.canvas.getContext('2d');
+    this.particles = [];
+    this.animId = null;
+    this.config = Object.assign({
+      count: 80, minSize: 2, maxSize: 8,
+      minSpeed: 0.5, maxSpeed: 2.5,
+      swayAmount: 1.5, spawnRate: 0,
+    }, config);
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.init();
+  }
+  resize() {
+    this.canvas.width = this.container.clientWidth || window.innerWidth;
+    this.canvas.height = this.container.clientHeight || window.innerHeight;
+  }
+  createParticle() {
+    return {
+      x: Math.random() * (this.canvas.width || window.innerWidth),
+      y: -10 - Math.random() * 100,
+      size: this.config.minSize + Math.random() * (this.config.maxSize - this.config.minSize),
+      speed: this.config.minSpeed + Math.random() * (this.config.maxSpeed - this.config.minSpeed),
+      swayOffset: Math.random() * Math.PI * 2,
+      swaySpeed: 0.01 + Math.random() * 0.03,
+      opacity: 0.3 + Math.random() * 0.7,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 2,
+    };
+  }
+  init() {
+    const w = this.canvas.width || window.innerWidth;
+    const h = this.canvas.height || window.innerHeight;
+    for (let i = 0; i < this.config.count; i++) {
+      const p = this.createParticle();
+      p.y = Math.random() * h;
+      this.particles.push(p);
+    }
+  }
+  update() {
+    const w = this.canvas.width || window.innerWidth;
+    const h = this.canvas.height || window.innerHeight;
+    this.particles.forEach(p => {
+      p.y += p.speed;
+      p.swayOffset += p.swaySpeed;
+      p.x += Math.sin(p.swayOffset) * this.config.swayAmount;
+      p.rotation += p.rotSpeed;
+      if (p.y > h + 20) Object.assign(p, this.createParticle());
+    });
+    if (this.config.spawnRate > 0 && Math.random() < this.config.spawnRate && this.particles.length < this.config.count + 30) {
+      this.particles.push(this.createParticle());
+    }
+  }
+  draw() { /* override */ }
+  animate() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.update();
+    this.draw();
+    this.animId = requestAnimationFrame(() => this.animate());
+  }
+  start() { this.animate(); }
+  destroy() {
+    if (this.animId) cancelAnimationFrame(this.animId);
+    if (this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas);
+  }
+}
+
+// ============ SAKURA SYSTEM ============
+class SakuraSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 45, minSize: 4, maxSize: 14, minSpeed: 0.4, maxSpeed: 1.6, swayAmount: 2 });
+  }
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity;
+      this.ctx.translate(p.x, p.y);
+      this.ctx.rotate(p.rotation * Math.PI / 180);
+      const s = p.size;
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        this.ctx.fillStyle = `rgba(255,${185+Math.random()*30},${210+Math.random()*30},0.85)`;
+        this.ctx.beginPath();
+        this.ctx.ellipse(Math.cos(angle)*s*0.6, Math.sin(angle)*s*0.6, s*0.5, s*0.25, angle, 0, Math.PI*2);
+        this.ctx.fill();
+      }
+      this.ctx.fillStyle = 'rgba(255,200,210,0.85)';
+      this.ctx.beginPath(); this.ctx.arc(0,0,s*0.2,0,Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ SNOW SYSTEM ============
+class SnowSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 120, minSize: 2, maxSize: 6, minSpeed: 0.3, maxSpeed: 1.2, swayAmount: 0.9 });
+  }
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity;
+      this.ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ RAIN SYSTEM ============
+class RainSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 160, minSize: 10, maxSize: 22, minSpeed: 4, maxSpeed: 9, swayAmount: 0.4 });
+  }
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity;
+      this.ctx.strokeStyle = 'rgba(180,200,220,0.4)';
+      this.ctx.lineWidth = 0.8;
+      this.ctx.beginPath();
+      this.ctx.moveTo(p.x, p.y);
+      this.ctx.lineTo(p.x - 2, p.y + p.size);
+      this.ctx.stroke();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ FIREFLY SYSTEM ============
+class FireflySystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 25, minSize: 2, maxSize: 5, minSpeed: 0.05, maxSpeed: 0.3, swayAmount: 3.5, spawnRate: 0.006 });
+  }
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity * (0.5 + 0.5 * Math.sin(Date.now()/1000 + p.swayOffset));
+      this.ctx.shadowBlur = 14;
+      this.ctx.shadowColor = 'rgba(255,240,120,0.7)';
+      this.ctx.fillStyle = 'rgba(255,240,150,0.8)';
+      this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ MAPLE SYSTEM ============
+class MapleSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 30, minSize: 6, maxSize: 18, minSpeed: 0.5, maxSpeed: 1.8, swayAmount: 2.5 });
+  }
+  draw() {
+    const colors = ['rgba(200,80,30,0.85)','rgba(220,140,40,0.8)','rgba(180,60,20,0.75)'];
+    this.particles.forEach((p,i) => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity;
+      this.ctx.translate(p.x, p.y);
+      this.ctx.rotate(p.rotation * Math.PI / 180);
+      this.ctx.fillStyle = colors[i%3];
+      const s = p.size;
+      for (let j = 0; j < 5; j++) {
+        const angle = (j/5)*Math.PI*2 - Math.PI/2;
+        this.ctx.beginPath();
+        this.ctx.ellipse(Math.cos(angle)*s*0.55, Math.sin(angle)*s*0.55, s*0.55, s*0.28, angle, 0, Math.PI*2);
+        this.ctx.fill();
+      }
+      this.ctx.fillStyle = 'rgba(140,50,15,0.7)';
+      this.ctx.beginPath(); this.ctx.arc(0,0,s*0.18,0,Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ STAR SYSTEM ============
+class StarSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 80, minSize: 0.5, maxSize: 2.5, minSpeed: 0, maxSpeed: 0, swayAmount: 0, spawnRate: 0 });
+  }
+  init() {
+    const w = this.canvas.width || window.innerWidth;
+    const h = this.canvas.height || window.innerHeight;
+    for (let i = 0; i < this.config.count; i++) {
+      this.particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h * 0.7,
+        size: this.config.minSize + Math.random() * (this.config.maxSize - this.config.minSize),
+        speed: 0, swayOffset: Math.random() * Math.PI * 2, swaySpeed: 0,
+        opacity: 0.4 + Math.random() * 0.6,
+        rotation: 0, rotSpeed: 0,
+        twinkleSpeed: 0.02 + Math.random() * 0.05,
+        twinkleOffset: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+  update() {}
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      const a = p.opacity * (0.4 + 0.6 * Math.abs(Math.sin(Date.now()/1000 * p.twinkleSpeed + p.twinkleOffset)));
+      this.ctx.globalAlpha = a;
+      this.ctx.fillStyle = 'rgba(255,255,240,0.9)';
+      this.ctx.shadowBlur = 6;
+      this.ctx.shadowColor = 'rgba(255,255,200,0.5)';
+      this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ FOG SYSTEM ============
+class FogSystem extends ParticleSystem {
+  constructor(containerEl) {
+    super(containerEl, { count: 8, minSize: 150, maxSize: 300, minSpeed: 0.1, maxSpeed: 0.3, swayAmount: 0.5 });
+  }
+  draw() {
+    this.particles.forEach(p => {
+      this.ctx.save();
+      this.ctx.globalAlpha = p.opacity * 0.15;
+      this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      const grad = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      this.ctx.fillStyle = grad;
+      this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+}
+
+// ============ POETRY DATA ============
+const poems = [
+  {
+    "title": "我用什么才能留住你？",
+    "author": "博尔赫斯",
+    "content": "我给你贫穷的街道、绝望的落日、破败郊区的月亮。 我给你一个久久地望着孤月的人的悲哀。\n我给你我已死去的先辈，人们用大理石纪念他们的幽灵：我父亲的父亲，阵亡在 布宜诺斯艾利斯边境，两颗子弹射穿了他的胸膛，蓄着胡子的他死去了，士兵们用牛皮裹起他的尸体； 我母亲的祖父——时年二十四岁——在秘鲁率领三百名士兵冲锋，如今都成了消失的马背上的亡灵。\n我给你我写的书中所能包含的一切悟力、我生活中所能有的男子气概或幽默。 我给你一个从未有过信仰的人的忠诚。 我给你我设法保全的我自己的核心——不营字造句，不和梦想交易，不被时间、欢乐和逆境触动的核心。\n我给你，早在你出生前多年的一个傍晚看到的一朵黄玫瑰的记忆。 我给你你对自己的解释，关于你自己的理论，你自己的真实而惊人的消息。 我给你我的寂寞、我的黑暗、我心的饥渴；我试图用困惑、危险、失败来打动你。",
+    "atmosphere": "night",
+    "customBg": "linear-gradient(180deg, #111116 0%, #1a1a24 30%, #2a2a35 70%, #0d0d12 100%)",
+    "particleCount": 120,
+    "swayAmount": 0
+  },
+  {
+    "title": "你不爱我也不怜悯我",
+    "author": "叶赛宁",
+    "content": "你不爱我也不怜悯我， 莫非我不够英俊？ 你的手搭在我的肩上， 情欲使你茫然失神。\n年轻多情的姑娘，对你 我既不鲁莽也不温存。 请告诉我，你喜欢过多少人？ 记得多少人的手臂？多少人的嘴唇？\n我知道，那些已成为过眼云烟， 他们没触及过你的火焰， 你坐过许多人的膝头， 如今竟在我的身边。\n你尽管眯起眼睛 去思念那一位情人， 须知我也沉浸在回忆里， 对你的爱并不算深。\n不要把我们的关系视为命运， 它只不过是感情的冲动， 似我们这般萍水相逢， 微微一笑就各奔前程。\n诚然，你将走自己的路， 消磨没有欢乐的时辰， 只是不要挑逗天真无邪的少年， 只是不要撩拨他们的春心。",
+    "atmosphere": "parting",
+    "customBg": "linear-gradient(180deg, #d9e2e8 0%, #bccbcf 30%, #7e9199 70%, #3e4a52 100%)",
+    "particleCount": 150,
+    "swayAmount": 0.5
+  },
+  {
+    "title": "当你老了",
+    "author": "叶芝",
+    "content": "当你老了，头发花白，睡意沉沉， 倦坐在炉边，取下这本书来， 慢慢读着，追梦当年的眼神， 那柔美的神采与深幽的晕影。\n多少人爱过你青春的片影， 爱过你的美貌，以虚伪或是真情， 惟独一人爱你那朝圣者的心， 爱你哀戚的脸上岁月的留痕。\n在炉栅边，你弯下了腰， 低语着，带着浅浅的伤感， 爱情是怎样逝去，又怎样步上群山， 怎样在繁星之间藏起了脸。",
+    "atmosphere": "autumn",
+    "customBg": "linear-gradient(180deg, #f5e6d3 0%, #e6b87c 30%, #c46210 70%, #3e1f04 100%)",
+    "particleCount": 20,
+    "swayAmount": 3
+  },
+  {
+    "title": "祖国（或以梦为马）",
+    "author": "海子",
+    "content": "我要做远方的忠诚的儿子\n和物质的短暂情人\n和所有以梦为马的诗人一样\n我不得不和烈士和小丑走在同一道路上\n万人都要将火熄灭 我一人独将此火高高举起\n此火为大 开花落英于神圣的祖国\n和所有以梦为马的诗人一样\n我藉此火得度一生的茫茫黑夜\n\n此火为大 祖国的语言和乱石投筑的梁山城寨\n以梦为上的敦煌——那七月也会寒冷的骨骼\n如雪白的柴和坚硬的条条白雪 横放在众神之山\n和所有以梦为马的诗人一样\n我投入此火 这三者是囚禁我的灯盏 吐出光辉\n万人都要从我刀口走过 去建筑祖国的语言\n我甘愿一切从头开始\n和所有以梦为马的诗人一样\n我也愿将牢底坐穿\n众神创造物中只有我最易朽 带着不可抗拒的 死亡的速度\n只有粮食是我珍爱\n我将她紧紧抱住 抱住她 在故乡生儿育女\n和所有以梦为马的诗人一样\n我也愿将自己埋葬在四周高高的山上 守望平静家园\n面对大海我无限惭愧\n我年华虚度 空有一身疲倦\n和所有以梦为马的诗人一样\n岁月易逝 一滴不剩 水滴中有一匹马儿 一命归天\n千年后如若我再生于祖国的河岸\n千年后我再次拥有中国的稻田 和周天子的雪山\n天马踢踏\n和所有以梦为马的诗人一样\n我选择永恒的事业\n我的事业 就是要成为太阳的一生\n他从古至今——“日”——他无比辉煌无比光明",
+    "atmosphere": "heroic",
+    "customBg": "linear-gradient(180deg, #e3dfd8 0%, #c1b3a3 30%, #7d594b 70%, #291712 100%)",
+    "particleCount": 12,
+    "swayAmount": 1
+  },
+  {
+    "title": "昭通旅馆",
+    "author": "雷平阳",
+    "content": "没有什么是不能承受的，只要愿意\n那一年，许多人都敏锐地发现了我的疲惫\n他们劝我多休息，学会节制，应该\n用成长代替焦虑。楼梯的转角处\n我站了一下，一个扛着花椒箱的老人\n爬了上来，空气中弥漫着又麻又香的气味\n接着，是一个理发匠，背着一面\n肮脏的镜子，他向上攀登的一瞬\n我看见他把我带走了，包括一个 十七岁少年的青春......旅客很少\n木匠来自四川，人口贩子出自威宁\n惟一的例外，有一个身份不明的人\n每天都坐在二楼的长椅上，从窗口往外看\n窗下是条小街，有几个老头在那儿\n以代人写信为生。这人说，他的老家\n在甘肃。那是我第一次遇到甘肃人\n沉默的人，萧条的人，天蓝色的夹克\n旧了，发白，显得有点小\n袖口上有一丝血迹。也许他的体内\n也压着一封信，旁边的邮局\n像他的身体一样结实\n我很少惊动他，一个亡命天涯的人\n他的身上一定裹着一层一敲就响的铁皮\n记得警察把他带走的那天，他用一双\n还残存着自由的手，扶着楼梯往下走\n脸上没有什么特殊的表情......\n二十年了 这些都一直没有被说出。相反\n在三楼最里面的一间，住着的一男一女\n屡屡被我提及：从二十年前开始\n那儿就响着做爱的声音，它的门\n时开时闭，像一个少年手淫者疲惫的眼睛",
+    "atmosphere": "winter",
+    "customBg": "linear-gradient(180deg, #d3e2ed 0%, #a9c6d9 30%, #5d7582 70%, #1c272e 100%)",
+    "particleCount": 90,
+    "swayAmount": 1.2
+  },
+  {
+    "title": "何人斯",
+    "author": "张枣",
+    "content": "究竟那是什么人？在外面的声音\n只可能在外面。你的心地幽深莫测\n青苔的井边有棵铁树，进了门\n为何你不来找我，只是溜向\n悬满干鱼的木梁下，我们曾经\n一同结网，你钟爱过跟水波说话的我\n你此刻追踪的是什么？\n为何对我如此暴虐\n\n我们有时也背靠着背，韶华流水\n我抚平你额上的皱纹，手掌因编织\n而温暖；你和我本来是一件东西\n享受另一件东西；纸窗、星宿和锅\n谁使眼睛昏花\n一片雪花转成两片雪花\n鲜鱼开了膛，血腥淋漓；你进门\n为何不来问寒问暖\n冷冰冰地溜动，门外的山丘缄默\n\n这是我钟情的第十个月\n我的光阴嫁给了一个影子\n我咬一口自己摘来的鲜桃，让你\n清洁的牙齿也尝一口，甜润的\n让你也全身膨胀如感激\n为何只有你说话的声音\n不见你遗留的晚餐皮果\n空空的外衣留着灰垢\n\n不见你的脸，香烟袅袅上升——\n你没有脸对人，对我？\n究竟那是什么人？一切变迁\n皆从手指开始。伐木丁丁，想起\n你的那些姿势，一个风暴便灌满了楼阁\n疾风紧张而突兀\n不在北边也不在南边\n我们的甬道冷得酸心刺骨\n\n你要是正缓缓向前行进\n马匹悠懒，六根辔（pèi）绳积满阴天\n你要是正匆匆向前行进\n马匹婉转，长鞭飞扬\n\n二月开白花，你逃也逃不脱，你在哪儿\n休息\n哪儿就被我守望着。你若告诉我\n你的双臂怎样垂落，我就会告诉你\n你将怎样再一次招手；你若告诉我\n你看见什么东西正在消逝\n我就会告诉你，你是哪一个",
+    "atmosphere": "winter",
+    "customBg": "linear-gradient(180deg, #ebeef2 0%, #c4cfd6 30%, #687985 70%, #2b353b 100%)",
+    "particleCount": 160,
+    "swayAmount": 2
+  },
+  {
+    "title": "镜中",
+    "author": "张枣",
+    "content": "只要想起一生中后悔的事\n梅花便落了下来\n比如看她游泳到河的另一岸\n比如登上一株松木梯子\n危险的事固然美丽\n不如看她骑马归来\n面颊温暖\n羞惭。低下头，回答着皇帝\n一面镜子永远等候她\n让她坐到镜中常坐的地方\n望着窗外，只要想起一生中后悔的事\n梅花便落满了南山",
+    "atmosphere": "spring",
+    "customBg": "linear-gradient(180deg, #fceef2 0%, #f7c3d4 30%, #e87b9e 70%, #b83762 100%)",
+    "particleCount": 60,
+    "swayAmount": 2.5
+  },
+  {
+    "title": "纽约夜眺",
+    "author": "张枣",
+    "content": "　　 I will go to the bank by the wood\nand become disguised and naked.\n——W.Whitman\n　　\n手捧鳟鱼攀登暗夜\n纽约好比纽约，垂挂于\n一滴热泪，飘向深渊\n　　\n星象的心跳蟑螂般窜动\n脂肪中的防盗锁沿途\n播种耳朵，宝石，逃脱\n　　\n和你；挽着你的纽约王\n你漫步在第五大道上\n幽魂车队递来迷迭香\n　　\n有关体态之痛的故事\n全部屈服于眼影深处\n但是，有甚么比成功更\n　　\n色情的呢？夜空飘来\n一朵彩云，来自永恒的\n偶尔安慰，看不见的你\n　　\n和阙如的纽约王走着\n未来酒吧镀金的内部\n男女蝙蝠般吮吸着明镜\n　　\n你用打火机找来火焰的\n一朵，侍者之水鞠躬\n历史的烟头一时找不着\n　　\n左边或右边，便随手弹进\n第三世界的烟灰缸里\n半个情人余音袅袅\n　　\n吻另半个，西维娅.普拉斯\n她多么骄傲地憎恨赤裸\n整体好比一颗生洋葱\n　　\n剥到中心，只见哭泣的皮\n分解成旋转门，杀手路过\n你难以脱身，像世界穿着\n　　\n地铁的内裤停也停步下来\n死神，这铬钢的剪票员\n下流地挡路，一个接一个\n　　\n手捧鳟鱼走进暗夜\n你追踪你最知心的密友\n一个有着易性癖的多梦者——\n　　\n磁铁的舞妹，诺言的蒙娜丽莎，\n脸上荡漾着悠远的神情\n身上，帝国客观的粘黏物\n　　\n被她舞落，飞溅于乌有乡\n异想天开的身份之谜\n神经里经营着灯红酒绿\n　　\n她怎能觉察你这娉婷的\n解放者，进来，露天消失\n零星的外面抛赏给自杀者\n　　\n他下坠，仿真，下落不明\n或无恙，被大拇指，遥控器上\n的瘾君子劫向图片的海绵垫\n　　\n电视机，幸免者思想的批发站\n里面那副Tarot扑克\n正一一亮牌，请人认领\n　　\n换牌：一个教师模样的\n尴尬人，正预言似的突破\n那法语字谜：鱼，Poisson\n　　\n“若漏掉当中的一个S\n就成了毒品”，纽约王心想，\n“怪不得巴黎人吃鱼考究”\n　　\n“我这就去那葱茏的堤岸\n去那儿袒露体魄和真容”\n但世界能否好转？可能的\n　　\n惠特曼，哼着这自己之歌\n驾驶幽灵中最短暂的出租车\n运着几个落魄的卫星人\n　　\n从布鲁克林大桥上经过——\n乌云正给男式摩天大楼\n戴上呢帽，天使们擦窗\n　　\n从布鲁克林大桥上经过——\n后视镜看见你七窍出血\n被几个黑影长久地，必然地\n　　\n殴打着。你站着，平静地注视\n哪儿，哪儿是我的缪斯啊？\n爱着，忍着，问着，我\n　　\n手捧红鳟鱼深入暗夜\n你口含一泓沁泉，开放了\n雕像上空破晓的为什么",
+    "atmosphere": "night",
+    "customBg": "linear-gradient(180deg, #101826 0%, #1e283b 30%, #334155 70%, #0f172a 100%)",
+    "particleCount": 160,
+    "swayAmount": 0.1
+  },
+  {
+    "title": "深秋的故事",
+    "author": "张枣",
+    "content": "向深秋再走几日\n我就会接近她震悚的背影\n她开口说江南如一棵树\n我眼前的景色便开始结果\n开始迢递；呵，她所说的那种季候\n仿佛正对着逆流而上的某个人\n开花，并穿越信誓的拱桥\n落下一片叶\n就知道是甲子年\n我身边的老人们\n菊花般的升腾、坠地\n情人们的地方蚕食其它的地方\n她便说江南如她的发型\n没有雨天，纸片都成了乳燕\n而我渐渐登上了晴朗的梯子\n诗行中有栏杆，我眼前的地图\n开始飘零，收敛\n我用手指清理着落花\n一遍又一遍地叨念自己的名字，仿佛\n那有着许多小石桥的江南\n我哪天会经过，正如同\n经过她寂静的耳畔\n她的袖口藏着皎美的气候\n而整个那地方\n也会在她的脸上张望\n也许我们不会惊动那些老人们\n他们菊花般升腾坠地\n清晰并且芬芳",
+    "atmosphere": "autumn",
+    "customBg": "linear-gradient(180deg, #fdf4e3 0%, #e8c495 30%, #cc6a25 70%, #471b01 100%)",
+    "particleCount": 40,
+    "swayAmount": 2.2
+  },
+  {
+    "title": "你的名字是俄国漫长的国境线",
+    "author": "廖伟棠",
+    "content": "一九二七年春，帕斯捷尔纳克致茨维塔耶娃\n\n我们多么草率地成为了孤儿。玛琳娜，\n这是我最后一次呼唤你的名字。\n\n大雪落在\n我锈迹斑斑的气管和肺叶上，\n\n说吧：今夜，我的嗓音是一列被截停的火车，\n你的名字是俄罗斯漫长的国境线。\n\n我想象我们的相遇，在一场隆重的死亡背面\n（玫瑰的矛盾贯穿了他硕大的心）；\n\n在一九二七年春夜，我们在国境线相遇\n因此错过了\n这个呼啸着奔向终点的世界。\n\n而今夜，你是舞曲，世界是错误。\n\n当新年的钟声敲响的时候，百合花盛放\n——他以他的死宣告了世纪的终结，\n而不是我们尴尬的生存。\n\n为什么我要对你们沉默？\n当华尔兹舞曲奏起的时候，我在谢幕。\n\n因为今夜，你是旋转，我是迷失。\n当你转换舞伴的时候，我将在世界的留言册上\n抹去我的名字。\n\n玛琳娜，国境线的舞会\n停止，大雪落向我们各自孤单的命运。\n\n我歌唱了这寒冷的春天，我歌唱了我们的废墟\n……然后我又将沉默不语。",
+    "atmosphere": "winter",
+    "customBg": "linear-gradient(180deg, #f0f4f8 0%, #b8cddb 30%, #688599 70%, #202b33 100%)",
+    "particleCount": 200,
+    "swayAmount": 1.5
+  },
+  {
+    "title": "致卡珊德拉",
+    "author": "曼德尔施塔姆",
+    "content": "我不在花开的瞬间，卡珊德拉，\n寻找你的双唇，寻找你的双眸，\n但在十二月，庄严的不眠——\n回忆，却在折磨着我们！\n\n在一九一七年的十二月，\n我们爱着，丧失了一切：\n一个被民众的意志所掠夺，\n另一个自己掠夺了自己……\n\n但如果，这生活即梦呓之必需，\n造船木材林就是高大的房屋，\n你就飞翔吧，断臂的胜利，\n你这北方的瘟疫！\n\n在布满装甲车的广场，\n我看到这样一个人，\n他正用燃着的木柴吓唬道：\n自由，法律，平等！\n\n亲爱的，亲爱的卡珊德拉，\n你在呻吟，你在燃烧，\n一百年前，太阳亚历山大\n为何高悬，将众人照耀？\n\n什么时候，在昏乱的都城，\n在涅瓦河岸，当西徐亚人欢庆，\n在可恶舞会的吵闹声中，\n有人从那漂亮的头上扯下头巾……",
+    "atmosphere": "heroic",
+    "customBg": "linear-gradient(180deg, #e3dfd6 0%, #b8a29a 30%, #7d564b 70%, #3d211a 100%)",
+    "particleCount": 15,
+    "swayAmount": 1.5
+  },
+  {
+    "title": "在淡蓝色的珐琅上",
+    "author": "曼德尔施塔姆",
+    "content": "在淡蓝色的珐琅上\n仿佛 四月里的思绪，\n白杨树枝升起\n于是不觉间 黄昏降临\n\n花纹精致而细密，\n精细的网格凝固了\n仿佛瓷盘上\n刻意描绘的图案\n\n当可爱的画家把它\n在玻璃的表面描绘\n他的心中记住瞬间的力量\n忘却痛苦的死亡。",
+    "atmosphere": "landscape",
+    "customBg": "linear-gradient(180deg, #f0f6fa 0%, #d5e6f0 30%, #9ebbd0 60%, #436d8c 100%)",
+    "particleCount": 5,
+    "swayAmount": 0.2
+  },
+  {
+    "title": "致O.阿尔白尼娜",
+    "author": "曼德尔施塔姆",
+    "content": "为了欢愉，请从我的手掌里取走\n些许阳光和些许蜂蜜，\n正如珀耳塞福涅的蜜蜂叮嘱我们。\n\n不能解开那只不系之舟，\n裹进毛皮无法听清穿鞋子的暗影，\n无法在茂密的生活中战胜恐惧。\n\n留给我们的只有那些亲吻，\n毛茸茸的，恰似小小的蜜蜂，\n飞离了蜂房，慢慢地死去。\n\n它们在透明的夜晚深处嗡嗡而鸣，\n它们的故乡——是昴宿二上的繁茂森林，\n它们的食粮——是时间，肺草，薄荷。\n\n为了欢愉，请取走我这野蛮人的礼物吧——\n这用死亡的蜜蜂串制的\n丑陋枯萎的项链，以及化作阳光的蜂蜜。",
+    "atmosphere": "summer",
+    "customBg": "linear-gradient(180deg, #fffce6 0%, #ffebb3 30%, #a3c961 70%, #296317 100%)",
+    "particleCount": 35,
+    "swayAmount": 4.5
+  },
+  {
+    "title": "礼物",
+    "author": "米沃什",
+    "content": "如此幸福的一天。\n雾一早就散了。我在花园里干活。\n蜂鸟停在忍冬花上。\n这世界上没有什么东西我想要去占有。\n我知道没有人值得我去忌恨。\n任何我所遭受的不幸，我已忘记。\n想到故我今我同为一人并不使我感到难为情。\n在我的身体里没有痛苦。\n直起身来，我看见蓝色的大海和帆影。",
+    "atmosphere": "landscape",
+    "customBg": "linear-gradient(180deg, #f4faeb 0%, #d9f0bf 30%, #9bc489 60%, #416b32 100%)",
+    "particleCount": 12,
+    "swayAmount": 0.6
+  },
+  {
+    "title": "20",
+    "author": "聂鲁达",
+    "content": "今夜我可以写出最哀伤的诗篇。\n\n写，譬如说，“夜缀满繁星，\n那些星，灿蓝，在远处颤抖。”\n\n晚风在天空中回旋歌唱。\n\n今夜我可以写出最哀伤的诗篇。\n我爱她，而有时候她也爱我。\n\n在许多仿佛此刻的夜里我拥她入怀。\n在永恒的天空下一遍一遍地吻她。\n\n她爱我，而有时候我也爱她。\n你怎能不爱她专注的大眼睛？\n\n今夜我可以写出最哀伤的诗篇。\n想到不能拥有她。感到已经失去她。\n\n听到那辽阔的夜，因她不在更加辽阔。\n诗遂滴落心灵，如露珠滴落草原。\n\n我的爱不能叫她留下又何妨？\n夜缀满繁星而她离我远去。\n\n都过去了。在远处有人歌唱。在远处。\n我的心不甘就此失去她。\n\n我的眼光搜寻着仿佛要走向她。\n我的心在找她，而她离我远去。\n\n相同的夜漂白着相同的树。\n昔日的我们已不复存在。\n\n如今我确已不再爱她，但我曾经多爱她啊。\n我的声音试着借风探触她的听觉。\n\n别人的。她就将是别人的了。一如我过去的吻。\n她的声音，她明亮的身体。她深邃的眼睛。\n\n如今我确已不再爱她。\n但也许我仍爱着她。\n\n爱是这么短，遗忘是这么长。\n\n因为在许多仿佛此刻的夜里我拥她入怀，\n我的心不甘就此失去她。\n\n即令这是她带给我的最后的痛苦，\n而这些是我为她写的最后的诗篇。",
+    "atmosphere": "night",
+    "customBg": "linear-gradient(180deg, #091221 0%, #17243d 30%, #293b5c 70%, #101626 100%)",
+    "particleCount": 90,
+    "swayAmount": 0.2
+  },
+  {
+    "title": "缺席",
+    "author": "聂鲁达",
+    "content": "我几乎没离开过你\n当你走进我，水晶般，\n或颤动，\n或不安，被我所伤，\n或因爱而狂喜，当你的眼睛\n合拢于我不停给你的生命礼物上。\n\n我的爱，我们已看到彼此\n干渴，我们已\n饮尽所有的水和血，\n\n我们看到彼此\n饥饿，\n互相咬啮对方，\n如同火咬啮，\n在身上留下伤口。\n\n但等候我，\n把你的甜头留给我。\n\n我也会给你\n一朵玫瑰。",
+    "atmosphere": "love",
+    "customBg": "linear-gradient(180deg, #fcedf3 0%, #f7c3dc 30%, #d18abf 70%, #59107d 100%)",
+    "particleCount": 55,
+    "swayAmount": 1.8
+  },
+  {
+    "title": "一百首爱的十四行诗——6",
+    "author": "聂鲁达",
+    "content": "在森林中走失，我折下一根暗黑的细枝，\n将它发出的细语举向我干渴的唇：\n那也许是哭泣的雨水，\n龟裂的钟，或撕碎的心的声音。\n\n某种传自远方的东西，听起来\n深沉而秘密，被大地所覆盖，\n啊被广大秋天，被树叶半掩、潮湿的\n阴暗所蒙蔽的呼喊。\n\n自树林的梦中醒来，\n榛树的嫩枝在我舌下歌唱，\n它飘浮的香味攀爬过我清明的心，\n\n仿佛被我遗弃的根突然间又来寻我，\n那随童年逝去的国度——\n我停了下来，被漫游的香气所伤。",
+    "atmosphere": "rain",
+    "customBg": "linear-gradient(180deg, #d2dbe0 0%, #9baab3 30%, #536c7a 70%, #27343b 100%)",
+    "particleCount": 220,
+    "swayAmount": 0.3
+  },
+  {
+    "title": "一百首爱的十四行诗——63",
+    "author": "聂鲁达",
+    "content": "我前行，不仅穿过荒原——那儿咸咸的岩块\n仿佛唯一的玫瑰，一朵埋身海中的花朵——\n同时走在凿雪而流的河岸；\n严酷的崇山峻岭也感知我的步履。\n\n我蛮荒家国纠缠、咻咻作响之领土，\n致命之吻紧锁着丛林的热带葛蔓，\n一面飞升一面甩落颤抖的鸟儿湿润的哭声：\n噢，失落的悲伤和险恶的泪水所在的疆土！\n\n不单单它们属于我：铜器有毒的表层，\n伸展如雪白卧像的硝石——\n还有葡萄园，还有春天赏赐的樱桃，\n\n它们也是我的，而我也属于它们，\n像黑色微粒落在干涸的大地上，落在投射于葡萄的秋光里，\n落在这个由雪之塔撑起的金属家国中。",
+    "atmosphere": "heroic",
+    "customBg": "linear-gradient(180deg, #e3dfda 0%, #c1b8b2 30%, #7d6c62 70%, #30201a 100%)",
+    "particleCount": 18,
+    "swayAmount": 0.8
+  },
+  {
+    "title": "士兵之夜",
+    "author": "聂鲁达",
+    "content": "我制造出士兵之夜，这时间属于既不悲伤也不毁灭的人，被大洋和一个浪头抛向远方的人，他不知苦涩的水已将他劈开，让他渐渐衰老，缓慢而不知恐惧，投身生命的日常，无病无灾，处处在场，蜗居在皮肤和外衣之下，黑暗得坦诚。\n\n如此，我见到了愚笨却开心的伙伴们，他们吸着烟，啐着唾沫，狰狞地喝着酒，却在一瞬间身患绝症。因为，士兵的阿姨、他的女友、他的岳母、他的弟妹都不知身在何方。许是死于流放，又或是死于疟疾，渐渐变得冰冷、泛黄，搬到一颗冰块打造的星星上，搬到一个凉爽的行星上，去休息，最终，置身于冰冷的姑娘和水果中，而他们的尸骨，他们可怜的火焰般的尸骨，会在雪花石膏雕琢的天使的保护下，远离火焰与灰烬，睡去。\n\n坠落的每一个白昼，都不得不在黄昏时屈服。我在那时分信步走过，完成不必要的执勤，我穿过穆斯林商贩，穿过朝拜奶牛和毒蛇的人群，我穿行而过，不讨人欢喜，面容平平。\n\n日子并不是一成不变，有时也会下雨：沉默的湿润从天空的炎热中降下，宛如一滴滴汗珠，落在巨大的植物上，落在凶兽的脊背上，沿着一片寂静，这些潮湿的羽毛时而交织，时而舒展开来。夜晚的雨水，是古老季风的泪，是咸的唾液，仿佛骏马口中的白沫坠落而下，缓慢地上升，可怜地溅落，在讶异中飘飞。\n\n如今，我那专业的好奇心又在何处？那低落的温柔只在宁静中才能绽放，它在何方？那闪烁的意识之光为我镀上极致的蓝色，它又在哪里？我开始像孩子一般呼吸，直到心脏是在强行跳动，是在以顽强的生理耐力跳动，毕竟我每日进食，毕竟我年岁既长，已被剥去复仇的行头和金色的皮肤。岁月只有一个季节，在我的脚下滚动，白昼与黑夜拼成一个日子，几乎总是停驻在我身上。\n\n于是，时不时地，我会去造访眼睛和胯部青春着的姑娘，她们的头上别着黄色的花朵，如闪电般闪亮。她们每个脚趾上都戴着足戒，脚踝上环着镯子、链子，还有各种颜色的项链，而我将它们摘下，细细检查，因为我喜欢面对毫无遮碍的紧实身体时的惊喜，我不会吝啬我的亲吻。我的双臂掂量着每一尊新鲜的雕像，她带来生动的慰藉，在寂静中我因男性的饥渴汲取着。\n\n我躺着，仰望这易逝的造物，目光攀上她赤裸的身躯，直至她的笑容：在我上方，巨大的，向上三角状的，被两团圆球般的乳房托举在半空，它们稳稳地停在我的眼前，如同两盏用白色灯油和甜蜜力量点燃的油灯。我向她深色的星星请求，向她皮肤的灼热请求，请求它们的庇护。我一动不动，沉下胸膛，如同一位不幸的敌人，拖着厚实却脆弱的四肢，身体无助地起伏挣扎：又或像一个苍白的车轮在她身上转动，被轴条、被手指切分，迅速地，深深地，转动着，宛如一颗脱离了轨道的星辰。\n\n唉，之后的每晚，废弃的炭火中总有什么自行燃尽，被废墟包裹起来，落入葬礼的物件之内。我常涉足于此，披挂无用的武装，遍身无力的反抗。我轻手轻脚地保管着被深夜的物质浸染的衣服和骨头：那是短暂的尘土，渐渐与我融为一体，替换之神常常守护在我身边，顽强地呼吸，举起了宝剑。\n\n日子并不是一成不变，有时也会下雨：沉默的湿润从天空的炎热中降下，宛如一滴滴汗珠，落在巨大的植物上，落在凶兽的脊背上，沿着一片寂静，这些潮湿的羽毛时而交织，时而舒展开来。",
+    "atmosphere": "heroic",
+    "customBg": "linear-gradient(180deg, #d3cec8 0%, #a6938a 30%, #573e35 70%, #20130f 100%)",
+    "particleCount": 22,
+    "swayAmount": 0.6
+  }
+];
+
+// ============ RENDER CARDS ============
+const gallery = document.getElementById('gallery');
+const overlay = document.getElementById('overlay');
+const overlayBg = document.getElementById('overlayBg');
+const overlayContent = document.getElementById('overlayContent');
+const overlayClose = document.getElementById('overlayClose');
+const searchInput = document.getElementById('searchInput');
+
+let activeParticleSystem = null;
+
+function getThumbIcon(atmosphere) {
+  const icons = {
+    spring: '🌸', autumn: '🍂', winter: '❄️', summer: '🌿',
+    landscape: '⛰️', love: '💕', parting: '🌾', heroic: '⚔️',
+    night: '🌙', rain: '🌧️'
+  };
+  return icons[atmosphere] || '📜';
+}
+
+function getThumbBg(atmosphere) {
+  const bgs = {
+    spring: 'linear-gradient(135deg, #fce4ec, #f8bbd0)',
+    autumn: 'linear-gradient(135deg, #ffcc80, #e65100)',
+    winter: 'linear-gradient(135deg, #e3f2fd, #90caf9)',
+    summer: 'linear-gradient(135deg, #fff9c4, #aed581)',
+    landscape: 'linear-gradient(135deg, #dcedc8, #a5d6a7)',
+    love: 'linear-gradient(135deg, #f8bbd0, #ce93d8)',
+    parting: 'linear-gradient(135deg, #cfd8dc, #78909c)',
+    heroic: 'linear-gradient(135deg, #d7ccc8, #8d6e63)',
+    night: 'linear-gradient(135deg, #1a237e, #4a148c)',
+    rain: 'linear-gradient(135deg, #b0bec5, #546e7a)'
+  };
+  return bgs[atmosphere] || bgs.landscape;
+}
+
+function renderCards(filter = '') {
+  const q = filter.toLowerCase();
+  const filtered = poems.filter(p =>
+    !q || p.title.toLowerCase().includes(q) || p.author.toLowerCase().includes(q)
+  );
+  gallery.innerHTML = filtered.map((p, i) => `
+    <div class="card" data-index="${poems.indexOf(p)}" onclick="openDetail(${poems.indexOf(p)})">
+      <div class="card-thumb" style="background:${getThumbBg(p.atmosphere)}">
+        <span class="thumb-icon">${getThumbIcon(p.atmosphere)}</span>
+      </div>
+      <div class="card-info">
+        <div class="poem-title">${p.title}</div>
+        <div class="poem-author">${p.author}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============ DETAIL OVERLAY ============
+function openDetail(index) {
+  const p = poems[index];
+  if (!p) return;
+
+  // Clear previous particle system
+  if (activeParticleSystem) {
+    activeParticleSystem.destroy();
+    activeParticleSystem = null;
+  }
+  overlayBg.innerHTML = '';
+
+  // Apply atmosphere-specific styling
+  const styles = getAtmosphereStyle(p.atmosphere);
+  if (p.customBg) styles.bgStyle = 'background: ' + p.customBg + ';';
+
+  // Populate DOM elements before styling
+  overlayContent.innerHTML = '<div class="poem-title"></div><div class="poem-author"></div><div class="poem-body"></div>';
+
+  overlayContent.querySelector('.poem-title').style.cssText = styles.titleStyle;
+  overlayContent.querySelector('.poem-author').style.cssText = styles.authorStyle;
+  const bodyEl = overlayContent.querySelector('.poem-body');
+  const isLightText = ['winter', 'heroic', 'night'].includes(p.atmosphere);
+  const shadow = isLightText ? 'text-shadow: 0 1px 8px rgba(0,0,0,0.85), 0 2px 4px rgba(0,0,0,0.9);' : 'text-shadow: 0 1px 8px rgba(255,255,255,0.85), 0 2px 4px rgba(255,255,255,0.9);';
+  styles.titleStyle += shadow;
+  styles.authorStyle += shadow;
+  styles.bodyStyle += shadow;
+
+  bodyEl.style.cssText = styles.bodyStyle;
+  bodyEl.textContent = p.content;
+
+  // Set background
+  overlayBg.style.cssText = styles.bgStyle;
+
+  // Activate particle system
+  const SystemClass = getParticleClass(p.atmosphere);
+  if (SystemClass) {
+      let configOverride = {};
+  if (p.particleCount) configOverride.count = p.particleCount;
+  if (p.swayAmount !== undefined) configOverride.swayAmount = p.swayAmount;
+  
+  activeParticleSystem = new SystemClass(overlayBg);
+  Object.assign(activeParticleSystem.config, configOverride);
+  activeParticleSystem.particles = [];
+  activeParticleSystem.init();
+    activeParticleSystem.start();
+  }
+
+  // Apply decoration elements
+  applyDecorations(overlayBg, p.atmosphere);
+
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  overlay.classList.remove('active');
+  document.body.style.overflow = '';
+  if (activeParticleSystem) {
+    activeParticleSystem.destroy();
+    activeParticleSystem = null;
+  }
+  overlayBg.innerHTML = '';
+  overlayBg.style.cssText = '';
+}
+
+function getAtmosphereStyle(atm) {
+  const styles = {
+    spring: {
+      bgStyle: 'background: linear-gradient(180deg, #fce4ec 0%, #f8bbd0 30%, #f48fb1 70%, #e8a0bf 100%);',
+      titleStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #5d1f2c;',
+      authorStyle: 'color: #8b3a4a;',
+      bodyStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #4a1020; line-height:2.3;'
+    },
+    autumn: {
+      bgStyle: 'background: linear-gradient(180deg, #fff3e0 0%, #ffcc80 30%, #e65100 70%, #4e1a00 100%);',
+      titleStyle: 'font-family: "SimSun","STSong","宋体",serif; color: #4e1a00;',
+      authorStyle: 'color: #8b4513;',
+      bodyStyle: 'font-family: "SimSun","STSong","宋体",serif; color: #3e1000; line-height:2.3;'
+    },
+    winter: {
+      bgStyle: 'background: linear-gradient(180deg, #e3f2fd 0%, #bbdefb 30%, #78909c 70%, #37474f 100%);',
+      titleStyle: 'font-family: "STHeiti","SimHei","黑体",sans-serif; font-weight:300; color: #e8e8e8;',
+      authorStyle: 'color: #b0bec5;',
+      bodyStyle: 'font-family: "STHeiti","SimHei","黑体",sans-serif; font-weight:300; color: #cfd8dc; line-height:2.3;'
+    },
+    summer: {
+      bgStyle: 'background: linear-gradient(180deg, #fff9c4 0%, #fff176 30%, #66bb6a 70%, #1b5e20 100%);',
+      titleStyle: 'font-family: "LiSu","STLiti","隶书",serif; color: #1b5e20;',
+      authorStyle: 'color: #33691e;',
+      bodyStyle: 'font-family: "LiSu","STLiti","隶书",serif; color: #004d00; line-height:2.3;'
+    },
+    landscape: {
+      bgStyle: 'background: linear-gradient(180deg, #f5f0e8 0%, #dcedc8 30%, #a5d6a7 60%, #4a7c59 100%);',
+      titleStyle: 'font-family: "LiSu","STLiti","隶书",serif; color: #2d4a22;',
+      authorStyle: 'color: #4a7c59;',
+      bodyStyle: 'font-family: "LiSu","STLiti","隶书",serif; color: #1a3015; line-height:2.3;'
+    },
+    love: {
+      bgStyle: 'background: linear-gradient(180deg, #fce4ec 0%, #f8bbd0 30%, #ce93d8 70%, #6a1b9a 100%);',
+      titleStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #6a1b9a;',
+      authorStyle: 'color: #8e24aa;',
+      bodyStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #4a148c; line-height:2.3;'
+    },
+    parting: {
+      bgStyle: 'background: linear-gradient(180deg, #eceff1 0%, #cfd8dc 30%, #90a4ae 70%, #455a64 100%);',
+      titleStyle: 'font-family: "FangSong","STFangsong","仿宋",serif; color: #37474f;',
+      authorStyle: 'color: #546e7a;',
+      bodyStyle: 'font-family: "FangSong","STFangsong","仿宋",serif; color: #263238; line-height:2.3;'
+    },
+    heroic: {
+      bgStyle: 'background: linear-gradient(180deg, #efebe9 0%, #d7ccc8 30%, #8d6e63 70%, #3e2723 100%);',
+      titleStyle: 'font-family: "STKaiti","KaiTi","楷体",serif; font-weight:bold; color: #d4a76a;',
+      authorStyle: 'color: #a1887f;',
+      bodyStyle: 'font-family: "STKaiti","KaiTi","楷体",serif; color: #d7ccc8; line-height:2.3;'
+    },
+    night: {
+      bgStyle: 'background: linear-gradient(180deg, #0d1b2a 0%, #1b2838 30%, #2c3e50 70%, #1a1a2e 100%);',
+      titleStyle: 'font-family: "STHeiti","SimHei","黑体",sans-serif; font-weight:300; color: #e0e0e0;',
+      authorStyle: 'color: #90a4ae;',
+      bodyStyle: 'font-family: "STHeiti","SimHei","黑体",sans-serif; font-weight:300; color: #b0bec5; line-height:2.3;'
+    },
+    rain: {
+      bgStyle: 'background: linear-gradient(180deg, #e0e8e8 0%, #b0bec5 30%, #607d8b 70%, #37474f 100%);',
+      titleStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #37474f;',
+      authorStyle: 'color: #546e7a;',
+      bodyStyle: 'font-family: "KaiTi","STKaiti","楷体",serif; color: #263238; line-height:2.3;'
+    }
+  };
+  return styles[atm] || styles.landscape;
+}
+
+function getParticleClass(atm) {
+  const map = {
+    spring: SakuraSystem,
+    love: SakuraSystem,
+    winter: SnowSystem,
+    rain: RainSystem,
+    parting: RainSystem,
+    summer: FireflySystem,
+    night: StarSystem,
+    autumn: MapleSystem,
+    landscape: FogSystem,
+    heroic: FogSystem,
+  };
+  return map[atm] || null;
+}
+
+function applyDecorations(container, atm) {
+  // Corner decorations as pseudo-element-like divs
+  const deco = document.createElement('div');
+  deco.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:1;';
+  const decorMap = {
+    spring: 'bottom:0;left:0;width:180px;height:200px;background:url("data:image/svg+xml,...") no-repeat;',
+    winter: 'top:0;right:0;width:120px;height:180px;background:radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.15), transparent 70%);',
+    night: 'top:5%;right:8%;width:80px;height:80px;background:radial-gradient(circle, rgba(255,255,200,0.6) 0%, rgba(255,255,200,0.1) 40%, transparent 70%); border-radius:50%; box-shadow: 0 0 60px 20px rgba(255,255,200,0.2);',
+  };
+  container.appendChild(deco);
+}
+
+// ============ EVENT LISTENERS ============
+overlayClose.addEventListener('click', closeDetail);
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) closeDetail();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && overlay.classList.contains('active')) closeDetail();
+});
+searchInput.addEventListener('input', (e) => renderCards(e.target.value));
+
+// ============ INIT ============
+renderCards();
+</script>
+</body>
+</html>
